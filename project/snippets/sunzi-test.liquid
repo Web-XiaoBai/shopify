@@ -1,0 +1,182 @@
+{% comment %}
+** @name 纪念日油画 **
+** @author 刘欢进 **
+** @integrate 刘欢进 **
+{% endcomment %}
+
+{% comment %} 引入公共插槽v2.0 {% endcomment %}
+{% include 'sunzi-slot-template-2' %}
+
+{% comment %} 核心库版本 {% endcomment %}
+{% assign coreJs = 'anniversary-painting-v1.0.0-beta.js' %}
+
+{% comment %} 定制化数据地址 {% endcomment %}
+{% assign requestURL = 'https://wuxian-chanpin.oss-accelerate.aliyuncs.com/sunzi/anniversary-painting-complex.json' %}
+
+{% if product.tags contains 'custom-sunzi-anniversary-painting-complex' %}
+	{% assign requestURL = 'https://wuxian-chanpin.oss-accelerate.aliyuncs.com/sunzi/anniversary-painting-complex.json' %}
+{% elsif product.tags contains 'custom-sunzi-anniversary-painting-simple' %}
+	{% assign requestURL = 'https://wuxian-chanpin.oss-accelerate.aliyuncs.com/sunzi/anniversary-painting-simple.json' %}
+{% endif %}
+
+{% comment %} 变体索引 {% endcomment %}
+{% comment %} 尺码变体 {% endcomment %}
+{% assign currentSizeIndex = 0 %}
+{% comment %} 边框变体 {% endcomment %}
+{% assign currentStyleIndex = 1 %}
+
+{% comment %} 样式补充&修正 {% endcomment %}
+<style type="text/css">
+  .product-form input{
+  	border-width:0px;
+  	min-height:0px;
+  }
+</style>
+
+{% comment %} 定制化表单 {% endcomment %}
+<div class="sunzi-form">
+  {% comment %} 额外的表单参数 {% endcomment %}
+  {% assign from = coreJs | split: '-v' %}
+  <input type="hidden" name="properties[_from]" value="sunzi-{{ from[0] }}" />
+
+  {% comment %} 默认表单参数 {% endcomment %}
+  <input type="text" id="sunzi-input" name="properties[customInfo]" required="required"></input>
+  <input type="hidden" id="sunzi-cart" name="properties[_sunzi_cart]" />
+
+  {% comment %} 定制按钮 {% endcomment %}
+  <div class="sunzi-form-content">
+    <div id="sunzi-node">
+      <div class="sunzi-node-loading">
+        <span class="dots">
+          <i></i>
+          <i></i>
+          <i></i>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{% comment %} loading 所需图片预加载 {% endcomment %}
+<link rel="preload" href="https://assets-sunzi.myuxc.com/anniversary-painting/CYH589_bg.png" as="image">
+<link rel="preload" href="https://assets-sunzi.myuxc.com/anniversary-painting/CYH590_bg.png" as="image">
+<link rel="preload" href="https://assets-sunzi.myuxc.com/anniversary-painting/CYH591_bg.png" as="image">
+<link rel="preload" href="https://assets-sunzi.myuxc.com/anniversary-painting/CYH592_bg.png" as="image">
+<link rel="preload" href="https://assets-sunzi.myuxc.com/anniversary-painting/CYH593_bg.png" as="image">
+<link rel="preload" href="https://assets-sunzi.myuxc.com/anniversary-painting/CYH594_bg.png" as="image">
+
+<!-- sunzi core js -->
+<script crossorigin src="https://wuxian-chanpin.oss-accelerate.aliyuncs.com/sunzi/{{ coreJs }}" defer="defer"></script>
+
+
+<script defer="async">
+
+</script>
+
+{% comment %} 2.请求定制化数据 & 渲染 {% endcomment %}
+<script defer="async">
+    // 产品数据
+    const product = {{ product | json }};
+    
+    // 是否是复杂版油画，存在圆形路径文本
+    const isComplex = product.tags.indexOf('custom-sunzi-anniversary-painting-complex') !== -1;
+
+    // 变体类型
+    const variantId = getQueryVariable("variant") || "{{ product.variants.first.id }}";
+
+    // sku
+    const sku = product.variants.find(item => item.id == variantId).sku;
+
+    // 价格
+    const price = {{ product.price }} * 0.01;
+
+    //着陆页url前缀
+    const prefixUrl =`${window.location.host}/pages/anniversary-painting?`;
+
+    _sunzi_request('{{ requestURL }}', function(data) {
+        const skuLayout = data.find(i => i.sku === sku)
+
+        AnniversaryPainting.render(
+        	AnniversaryPainting.default,
+          {
+              shop: {
+                language: 'en_US',
+                currency: 'USD',
+                currencySymbol: '$'
+              },
+              price: price,
+              isComplex: isComplex,
+              productSizes: [
+                {
+                    id: '20*30',
+                    name: '20*30cm',
+                    description: '8" x 12"'
+                },
+                {
+                    id: '30*45',
+                    name: '30*45cm',
+                    description: '12" x 18"'
+                },
+                {
+                    id: '40*50',
+                    name: '40*50cm',
+                    description: '16" x 20"'
+              	}
+              ],
+              productStyles: [
+                {
+                    id: 0,
+                    name: 'No Wooden Frame',
+                	framePrice: 0
+                },
+                {
+                    id: 1,
+                    name: 'Wooden Frame',
+                	framePrice: 9.99
+                }
+              ],
+              productLayouts: data,
+              onVariantChange(size, style) {
+                _sunzi_variant_change({{currentSizeIndex}}, size.name);
+                _sunzi_variant_change({{currentStyleIndex}}, style.name);
+              },
+              async onConfirm(output) {
+
+                // 唤醒loading
+                _sunzi_loading();
+
+
+                // 组装加车参数
+                const param = {
+                    '_sunzi_effects': output.effectImage,
+                    '_sunzi_texts': output.texts,
+                    '_sunzi_compose': [{
+                        rule: 40.1,
+                        data: output.layout
+                    }]
+                };
+
+                $('#sunzi-input').val(JSON.stringify(param));
+                $('#sunzi-cart').val(JSON.stringify({
+                    image: [ output.effectImage ]
+                }));
+
+                // 加车队列
+                const _queue = [
+                    _sunzi_add_cart()
+                ];
+
+                // 加车事件触发
+                await Promise.all(_queue);
+              }
+          },
+          _matomoId,
+          document.getElementById("sunzi-node")
+        );
+    });
+
+    /** 其他自定义函数 start **/
+
+    /** 其他自定义函数 end **/
+</script>
